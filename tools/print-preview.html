@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Превью печатных документов — dev-инструмент</title>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 20px; background: #eef2f7; }
+    .bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    button, select { font: inherit; padding: 8px 14px; border-radius: 8px; border: 2px solid #c9d2de; background: #fff; cursor: pointer; }
+    iframe { width: 794px; height: 900px; border: 1px solid #b9c3d0; background: #fff; border-radius: 8px; }
+    p.hint { color: #556; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <!--
+    Служебная страница для разработчика: показывает точный HTML,
+    который приложение отправляет на печать (без открытия диалога печати).
+    Использует тот же код приложения (window.PixelApp.buildPrintDoc).
+  -->
+  <div class="bar">
+    <strong>Превью печати:</strong>
+    <select id="pic"></select>
+    <button id="blank">📄 Пустая раскраска</button>
+    <button id="full">🖼️ Готовый вариант</button>
+    <button id="print">🖨️ Напечатать превью</button>
+  </div>
+  <p class="hint">Такой документ уходит на печать из основного приложения.</p>
+  <iframe id="out"></iframe>
+
+  <script src="../js/embedded-art.js"></script>
+  <script src="../js/svg-rasterizer.js"></script>
+  <script src="../js/math-quiz.js"></script>
+  <script src="../js/audio.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    const out = document.getElementById('out');
+    const pic = document.getElementById('pic');
+    const load = async () => {
+      await PixelApp.loadPicture(pic.value);
+      show(lastMode);
+    };
+    let lastMode = 'blank';
+    const show = (mode) => {
+      if (!window.PixelApp || !PixelApp.state.pic) return;
+      lastMode = mode;
+      out.srcdoc = PixelApp.buildPrintDoc(mode);
+    };
+    document.getElementById('blank').addEventListener('click', () => show('blank'));
+    document.getElementById('full').addEventListener('click', () => show('full'));
+    document.getElementById('print').addEventListener('click', () => {
+      show(lastMode);
+      out.onload = () => setTimeout(() => out.contentWindow.print(), 100);
+    });
+    // Список картинок — ждём, пока приложение загрузит первую картинку.
+    const fill = async () => {
+      for (let i = 0; i < 100; i++) {
+        if (window.PixelApp && PixelApp.state && PixelApp.state.pic) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (!window.PixelApp || !PixelApp.state.pic) {
+        document.querySelector('.hint').textContent = 'Ошибка: приложение не загрузилось.';
+        return;
+      }
+      PixelApp.state.registry.forEach((r) => {
+        const o = document.createElement('option');
+        o.value = r.file;
+        o.textContent = r.title;
+        pic.appendChild(o);
+      });
+      pic.value = PixelApp.state.pic.file;
+      show('blank');
+    };
+    pic.addEventListener('change', load);
+    fill();
+  </script>
+</body>
+</html>
